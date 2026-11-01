@@ -36,7 +36,6 @@ param(
 # terminating error under 'Stop' once output is redirected, so check exit codes explicitly instead.
 $ErrorActionPreference = 'Continue'
 if (-not $Gst) { $Gst = Join-Path $Craft 'gstreamer\1.0\msvc_x86_64' }
-$GstRoot = Split-Path (Split-Path $Gst)   # the installer's DIR; it appends 1.0\msvc_x86_64
 $ProgressPreference = 'SilentlyContinue'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
@@ -162,7 +161,7 @@ function Stage-Gstreamer {
         Log 'installing GStreamer'
         # The official installer is Inno Setup: MSI-style switches are ignored and it would wait for a click
         # in an invisible window. Use Inno's silent switches and keep a log.
-        $p = Start-Process $exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/SP-',"/DIR=$GstRoot","/LOG=$Work\gstreamer-install.log" -Wait -PassThru
+        $p = Start-Process $exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/SP-',"/DIR=$Gst","/LOG=$Work\gstreamer-install.log" -Wait -PassThru
         if ($p.ExitCode -notin 0,3010) { Fail "GStreamer installer failed (exit $($p.ExitCode)); see $Work\gstreamer-install.log" }
     }
     if (-not (Test-Path "$Gst\lib\pkgconfig\gstreamer-audio-1.0.pc")) { Fail "GStreamer not found at $Gst (use -Gst to point at it)" }
@@ -232,6 +231,8 @@ function Stage-Post {
     # Per-user environment so that double-clicking amarok.exe works.
     $u = [Environment]::GetEnvironmentVariable('Path','User'); if (-not $u) { $u = '' }
     if ($u -notlike "*$Gst\bin*") { [Environment]::SetEnvironmentVariable('Path', (($u.TrimEnd(';') + ";$Gst\bin").TrimStart(';')), 'User') }
+    # The silent installer does not set these (the GUI one does); set them for the user.
+    [Environment]::SetEnvironmentVariable('GSTREAMER_1_0_ROOT_MSVC_X86_64', $Gst, 'User')
     [Environment]::SetEnvironmentVariable('GST_PLUGIN_SYSTEM_PATH', $curated, 'User')
     [Environment]::SetEnvironmentVariable('GST_PLUGIN_PATH', $curated, 'User')
     Log 'post: done (log out and in, or start a new shell, to pick up the environment)'
