@@ -222,6 +222,11 @@ if( CMAKE_BUILD_TYPE_TOLOWER MATCHES debug )
     endif()
 endif()
 
+if (MSVC)
+    # the generated moc compilation unit exceeds the default COFF section limit
+    add_compile_options(/bigobj)
+endif()
+
 option(WITH_MYSQL "Build with MySQL/MariaDB storage backend" ON)
 
 add_subdirectory( data )

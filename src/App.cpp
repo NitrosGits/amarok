@@ -253,8 +253,8 @@ App::~App()
     QDBusConnectionInterface* dbusService;
     if (QDBusConnection::sessionBus().isConnected() && (dbusService = QDBusConnection::sessionBus().interface()))
     {
-        dbusService->unregisterService("org.mpris.amarok");
-        dbusService->unregisterService("org.mpris.MediaPlayer2.amarok");
+        dbusService->unregisterService(QStringLiteral("org.mpris.amarok"));
+        dbusService->unregisterService(QStringLiteral("org.mpris.MediaPlayer2.amarok"));
     }
 #endif
 }
