@@ -43,9 +43,6 @@
 #include <QStandardPaths>
 #include <QToolTip>
 
-#ifdef Q_OS_APPLE
-    extern void qt_mac_set_dock_menu(QMenu *);
-#endif
 
 Amarok::TrayIcon::TrayIcon( QObject *parent )
     : KStatusNotifierItem( parent )
@@ -64,7 +61,7 @@ Amarok::TrayIcon::TrayIcon( QObject *parent )
 
 #ifdef Q_OS_APPLE
     // Add these functions to the dock icon menu in OS X
-    qt_mac_set_dock_menu( contextMenu() );
+    contextMenu()->setAsDockMenu();
     contextMenu()->addAction( ac->action( QStringLiteral("playlist_playmedia") ) );
     contextMenu()->addSeparator();
 #endif

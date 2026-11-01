@@ -27,7 +27,7 @@
 #include "core/meta/forward_declarations.h"
 #include "EngineController.h"
 
-class OSXNotify : QObject
+class OSXNotify : public QObject
 {
     Q_OBJECT
 

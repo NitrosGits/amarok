@@ -60,24 +60,34 @@ MySqlEmbeddedStorage::init( const QString &storageLocation )
         databaseDir = dir.absolutePath() + QDir::separator() + QStringLiteral("mysqle");
     }
 
-    QVector<const char*> mysql_args;
-    QByteArray dataDir = QStringLiteral( "--datadir=%1" ).arg( databaseDir ).toLocal8Bit();
-    mysql_args << databaseName().toUtf8().constData()
-               << dataDir.constData()
-               // CAUTION: if we ever change the table type we will need to fix a number of MYISAM specific
-               // functions, such as FULLTEXT indexing.
-               << "--default-storage-engine=MyISAM"
-               << "--innodb=OFF"
-               << "--skip-grant-tables"
+    // The embedded server keeps pointers to these arguments (and re-reads them in
+    // mysql_real_connect()), so they must outlive the call. The array must also be
+    // NULL terminated.
+    static QList<QByteArray> mysql_arg_strings;
+    static QVector<const char*> mysql_args;
+    static int mysql_argc = 0;
+    if( mysql_args.isEmpty() )
+    {
+        mysql_arg_strings << databaseName().toUtf8()
+                          << QStringLiteral( "--datadir=%1" ).arg( databaseDir ).toLocal8Bit()
+                          // CAUTION: if we ever change the table type we will need to fix a number of MYISAM specific
+                          // functions, such as FULLTEXT indexing.
+                          << QByteArrayLiteral( "--default-storage-engine=MyISAM" )
+                          << QByteArrayLiteral( "--innodb=OFF" )
+                          << QByteArrayLiteral( "--skip-grant-tables" )
 #if (defined(MYSQL_VERSION_ID)) && (MYSQL_VERSION_ID >= 50700)
-               << "--myisam-recover-options=FORCE"
+                          << QByteArrayLiteral( "--myisam-recover-options=FORCE" )
 #else
-               << "--myisam-recover=FORCE"
+                          << QByteArrayLiteral( "--myisam-recover=FORCE" )
 #endif
-               << "--key-buffer-size=16777216" // (16Mb)
-               << "--character-set-server=utf8mb4"
-               << "--collation-server=utf8mb4_bin";
-
+                          << QByteArrayLiteral( "--key-buffer-size=16777216" ) // (16Mb)
+                          << QByteArrayLiteral( "--character-set-server=utf8mb4" )
+                          << QByteArrayLiteral( "--collation-server=utf8mb4_bin" );
+        for( const QByteArray &arg : std::as_const( mysql_arg_strings ) )
+            mysql_args << arg.constData();
+        mysql_argc = mysql_args.size();
+        mysql_args << nullptr; // terminator, not counted in argc
+    }
 
     if( !QFile::exists( databaseDir ) )
     {
@@ -89,7 +99,7 @@ MySqlEmbeddedStorage::init( const QString &storageLocation )
     // we only need to do this once
     if( !libraryInitRef.fetchAndAddOrdered( 1 ) )
     {
-        int ret = mysql_library_init( mysql_args.size(), const_cast<char**>(mysql_args.data()), nullptr );
+        int ret = mysql_library_init( mysql_argc, const_cast<char**>(mysql_args.data()), nullptr );
         if( ret != 0 )
         {
             // mysql sources show that there is only 0 and 1 as return code

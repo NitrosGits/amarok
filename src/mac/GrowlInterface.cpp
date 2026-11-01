@@ -25,6 +25,8 @@
 #include "SvgHandler.h"
 #include "TrayIcon.h"
 
+#include <KLocalizedString>
+
 GrowlInterface::GrowlInterface( QString appName ) :
                 m_appName( appName )
 {
@@ -45,11 +47,11 @@ GrowlInterface::show( Meta::TrackPtr track )
     {
         text = track->prettyName();
         if( track->artist() && !track->artist()->prettyName().isEmpty() )
-            text = track->artist()->prettyName() + " - " + text;
+            text = track->artist()->prettyName() + QStringLiteral( " - " ) + text;
         if( track->album() && !track->album()->prettyName().isEmpty() )
-            text += "\n (" + track->album()->prettyName() + ") ";
+            text += QStringLiteral( "\n (" ) + track->album()->prettyName() + QStringLiteral( ") " );
         else
-            text += '\n';
+            text += QLatin1Char( '\n' );
         if( track->length() > 0 )
             text += Meta::msToPrettyTime( track->length() );
     }
@@ -57,7 +59,7 @@ GrowlInterface::show( Meta::TrackPtr track )
     if( text.isEmpty() )
         text =  track->playableUrl().fileName();
 
-    if( text.startsWith( "- " ) ) //When we only have a title tag, _something_ prepends a fucking hyphen. Remove that.
+    if( text.startsWith( QStringLiteral( "- " ) ) ) //When we only have a title tag, _something_ prepends a fucking hyphen. Remove that.
         text = text.mid( 2 );
 
     if( text.isEmpty() ) //still
@@ -69,7 +71,7 @@ GrowlInterface::show( Meta::TrackPtr track )
         {
             pApp->trayIcon()->setIconByPixmap( The::svgHandler()->imageWithBorder( track->album(), 100, 5 ) );
         }
-        pApp->trayIcon()->showMessage( "Amarok", text, QString() );
+        pApp->trayIcon()->showMessage( QStringLiteral( "Amarok" ), text, QString() );
     }
 
 }

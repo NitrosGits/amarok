@@ -159,13 +159,27 @@ App::App(int &argc, char **argv)
                     }
                     path.prepend( bp );
                     debug() << "setting PATH=" << path;
-                    setenv("PATH", path, 1);
+                    setenv("PATH", path.constData(), 1);
                 }
             }
             // docs say we are responsible for releasing CFURLRef
             CFRelease(urlRef);
         }
     }
+
+    // QIcon on macOS does not search XDG_DATA_DIRS, so Amarok's own icon theme
+    // (<datadir>/amarok/icons) and installed themes would never be found.
+    const QStringList dataDirs = QString::fromLocal8Bit( qgetenv( "XDG_DATA_DIRS" ) ).split( QLatin1Char(':'), Qt::SkipEmptyParts );
+    QStringList iconPaths = QIcon::themeSearchPaths();
+    for( const QString &dir : dataDirs )
+    {
+        iconPaths << dir + QStringLiteral("/icons") << dir + QStringLiteral("/amarok/icons");
+    }
+    QIcon::setThemeSearchPaths( iconPaths );
+
+    // No theme is selected by default on macOS, so most themed icons (e.g. internet-services) don't resolve.
+    if( QIcon::themeName().isEmpty() )
+        QIcon::setThemeName( QStringLiteral("breeze") );
 
     setupEventHandler_mac(this);
 #endif

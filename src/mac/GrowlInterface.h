@@ -28,7 +28,7 @@
 #include "EngineController.h"
     
  // NOTE if not on mac, this whole file is useless, so not even going to try
-class GrowlInterface : QObject
+class GrowlInterface : public QObject
 {
     Q_OBJECT
 

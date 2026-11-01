@@ -71,7 +71,7 @@ macCallbackUrlHandler( const AppleEvent *ae, AppleEvent *, long /*handlerRefCon*
         if( error == noErr )
         {
             QUrl url( QString::fromUtf8( ba.data() ) );
-            if( url.scheme() == "amarok" )
+            if( url.scheme() == QLatin1String( "amarok" ) )
             {
                 AmarokUrl aUrl( url.url() );
                 aUrl.run();

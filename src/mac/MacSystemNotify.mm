@@ -26,6 +26,11 @@
 #include "SvgHandler.h"
 #include "TrayIcon.h"
 
+#include <KLocalizedString>
+#include <QBuffer>
+#include <QByteArray>
+#include <QPixmap>
+
 #import <Foundation/NSUserNotification.h>
 #import <ApplicationServices/ApplicationServices.h>
 
@@ -77,9 +82,9 @@ OSXNotify::show( Meta::TrackPtr track )
             albumString = track->album()->prettyName();
         if( track->length() > 0 )
         {
-            text += " (";
+            text += QStringLiteral( " (" );
             text += Meta::msToPrettyTime( track->length() );
-            text += ')';
+            text += QLatin1Char( ')' );
         }
 
         if( text.isEmpty() )
@@ -88,7 +93,7 @@ OSXNotify::show( Meta::TrackPtr track )
         albumImage = The::coverCache()->getCover( track->album(), 100 );
     }
 
-    if( text.startsWith( "- " ) ) //When we only have a title tag, _something_ prepends a fucking hyphen. Remove that.
+    if( text.startsWith( QStringLiteral( "- " ) ) ) //When we only have a title tag, _something_ prepends a fucking hyphen. Remove that.
         text = text.mid( 2 );
 
     if( text.isEmpty() ) //still
@@ -97,9 +102,12 @@ OSXNotify::show( Meta::TrackPtr track )
     NSImage *nImage = 0;
     if( !albumImage.isNull() )
     {
-        CGImageRef cgImage = albumImage.toMacCGImageRef();
-        nImage = [[NSImage alloc] initWithCGImage:cgImage size:NSZeroSize];
-        CFRelease(cgImage);
+        QByteArray pngData;
+        QBuffer buffer( &pngData );
+        buffer.open( QIODevice::WriteOnly );
+        albumImage.save( &buffer, "PNG" );
+        NSData *data = [NSData dataWithBytes:pngData.constData() length:pngData.size()];
+        nImage = [[NSImage alloc] initWithData:data];
     }
     if( artistString.isEmpty() )
         artistString = i18n( "Unknown" );
