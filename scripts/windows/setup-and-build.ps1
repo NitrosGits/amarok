@@ -158,8 +158,10 @@ function Stage-Gstreamer {
         $got = (Get-FileHash $exe -Algorithm SHA256).Hash.ToLower()
         if ($want -ne $got) { Remove-Item $exe; Fail "GStreamer installer checksum mismatch (expected $want, got $got)" }
         Log 'installing GStreamer'
-        $p = Start-Process $exe -ArgumentList '/quiet','/norestart','ADDLOCAL=ALL' -Wait -PassThru
-        if ($p.ExitCode -notin 0,3010) { Fail "GStreamer installer failed (exit $($p.ExitCode))" }
+        # The official installer is Inno Setup: MSI-style switches are ignored and it would wait for a click
+        # in an invisible window. Use Inno's silent switches and keep a log.
+        $p = Start-Process $exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/SP-',"/LOG=$Work\gstreamer-install.log" -Wait -PassThru
+        if ($p.ExitCode -notin 0,3010) { Fail "GStreamer installer failed (exit $($p.ExitCode)); see $Work\gstreamer-install.log" }
     }
     if (-not (Test-Path "$Gst\lib\pkgconfig\gstreamer-audio-1.0.pc")) { Fail "GStreamer not found at $Gst (use -Gst to point at it)" }
     MarkDone 'gstreamer'
