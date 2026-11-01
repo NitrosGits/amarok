@@ -76,6 +76,8 @@
 #include <QDBusConnection>
 #include <QFile>
 #include <QFileOpenEvent>
+#include <QIcon>
+#include <QStandardPaths>
 #include <QStringList>
 #include <QTimer>                       //showHyperThreadingWarning()
 
@@ -168,6 +170,20 @@ App::App(int &argc, char **argv)
     }
 
     setupEventHandler_mac(this);
+#endif
+
+#ifdef Q_OS_WINDOWS
+    // No icon theme is selected by default on Windows, so most themed icons don't resolve.
+    // Also look for Amarok's own icon theme (<datadir>/amarok/icons) next to the installed data.
+    QStringList iconPaths = QIcon::themeSearchPaths();
+    const QStringList dataDirs = QStandardPaths::standardLocations( QStandardPaths::GenericDataLocation );
+    for( const QString &dir : dataDirs )
+    {
+        iconPaths << dir + QStringLiteral("/icons") << dir + QStringLiteral("/amarok/icons");
+    }
+    QIcon::setThemeSearchPaths( iconPaths );
+    if( QIcon::themeName().isEmpty() )
+        QIcon::setThemeName( QStringLiteral("breeze") );
 #endif
 
     PERF_LOG( "Done App ctor" )
