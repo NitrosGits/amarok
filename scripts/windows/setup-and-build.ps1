@@ -25,7 +25,7 @@ param(
     [string]$Stage = 'all',
     [string]$Craft = 'C:\CraftRoot',
     [string]$Work  = 'C:\amarok-build',
-    [string]$Gst   = 'C:\Program Files\gstreamer\1.0\msvc_x86_64',
+    [string]$Gst   = '',   # default: $Craft\gstreamer\1.0\msvc_x86_64
     [string]$GstVersion = '1.28.8',
     [string]$MariaDbTag = 'mariadb-10.11.13',
     [string]$KfTag = 'v6.31.0',
@@ -35,6 +35,8 @@ param(
 # Windows PowerShell 5.1 turns a native program's stderr text (git progress, Craft's banner) into a
 # terminating error under 'Stop' once output is redirected, so check exit codes explicitly instead.
 $ErrorActionPreference = 'Continue'
+if (-not $Gst) { $Gst = Join-Path $Craft 'gstreamer\1.0\msvc_x86_64' }
+$GstRoot = Split-Path (Split-Path $Gst)   # the installer's DIR; it appends 1.0\msvc_x86_64
 $ProgressPreference = 'SilentlyContinue'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
@@ -160,7 +162,7 @@ function Stage-Gstreamer {
         Log 'installing GStreamer'
         # The official installer is Inno Setup: MSI-style switches are ignored and it would wait for a click
         # in an invisible window. Use Inno's silent switches and keep a log.
-        $p = Start-Process $exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/SP-',"/LOG=$Work\gstreamer-install.log" -Wait -PassThru
+        $p = Start-Process $exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/SP-',"/DIR=$GstRoot","/LOG=$Work\gstreamer-install.log" -Wait -PassThru
         if ($p.ExitCode -notin 0,3010) { Fail "GStreamer installer failed (exit $($p.ExitCode)); see $Work\gstreamer-install.log" }
     }
     if (-not (Test-Path "$Gst\lib\pkgconfig\gstreamer-audio-1.0.pc")) { Fail "GStreamer not found at $Gst (use -Gst to point at it)" }
