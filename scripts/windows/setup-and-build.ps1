@@ -32,7 +32,9 @@ param(
     [int]$Jobs = [Environment]::ProcessorCount
 )
 
-$ErrorActionPreference = 'Stop'
+# Windows PowerShell 5.1 turns a native program's stderr text (git progress, Craft's banner) into a
+# terminating error under 'Stop' once output is redirected, so check exit codes explicitly instead.
+$ErrorActionPreference = 'Continue'
 $ProgressPreference = 'SilentlyContinue'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
@@ -67,7 +69,7 @@ function InCraft([string]$Script) {
 function Download($url, $out) {
     if (Test-Path $out) { return }
     Log "downloading $url"
-    Invoke-WebRequest $url -OutFile $out
+    Invoke-WebRequest $url -OutFile $out -ErrorAction Stop
 }
 
 # ---------------------------------------------------------------------------------------------
@@ -76,7 +78,7 @@ function Stage-Prereqs {
     if (-not (Test-Admin)) { Fail 'prereqs needs an elevated PowerShell' }
 
     if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-        $rel = Invoke-RestMethod https://api.github.com/repos/git-for-windows/git/releases/latest -Headers @{ 'User-Agent' = 'amarok-setup' }
+        $rel = Invoke-RestMethod https://api.github.com/repos/git-for-windows/git/releases/latest -Headers @{ 'User-Agent' = 'amarok-setup' } -ErrorAction Stop
         $arch = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'arm64' } else { '64-bit' }
         $a = $rel.assets | Where-Object { $_.name -match "$arch\.exe$" -and $_.name -notmatch 'Portable|busybox|MinGit' } | Select-Object -First 1
         Download $a.browser_download_url (Join-Path $Dl 'git.exe')
@@ -171,6 +173,7 @@ function Stage-Mariadb {
     $db = Join-Path $Src 'mariadb'
     if (-not (Test-Path $db)) { git clone --depth 1 --branch $MariaDbTag https://github.com/MariaDB/server.git $db; if ($LASTEXITCODE) { Fail 'git clone mariadb' } }
     git -C $db submodule update --init --depth 1
+    if ($LASTEXITCODE) { Fail 'git submodule update (mariadb)' }
     foreach ($pf in Get-ChildItem $Patches -Filter *.patch | Sort-Object Name) {
         git -C $db apply --check -R $pf.FullName 2>$null
         if ($LASTEXITCODE -eq 0) { Log "mariadb patch already applied: $($pf.Name)"; continue }
