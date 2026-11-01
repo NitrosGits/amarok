@@ -39,7 +39,7 @@ if (-not $Gst) { $Gst = Join-Path $Craft 'gstreamer\1.0\msvc_x86_64' }
 $ProgressPreference = 'SilentlyContinue'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
-$Repo    = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
+$Repo    = [IO.Path]::GetFullPath((Resolve-Path (Join-Path $PSScriptRoot '..\..')).ProviderPath).TrimEnd('\')   # .Path carries a provider prefix on UNC paths
 $Patches = Join-Path $PSScriptRoot 'patches\mariadb'
 $Done    = Join-Path $Work '.done'
 $Dl      = Join-Path $Work 'download'
@@ -202,6 +202,7 @@ function Stage-Amarok {
     $bld = Join-Path $Work 'build\amarok'
     # build from a local copy: building over a network share is very slow
     robocopy $Repo $srcDir /MIR /XD .git build build-macos /NFL /NDL /NJH /NJS /NP | Out-Null
+    if ($LASTEXITCODE -ge 8 -or -not (Test-Path (Join-Path $srcDir 'CMakeLists.txt'))) { Fail "copying the source from $Repo to $srcDir failed (robocopy exit $LASTEXITCODE)" }
     $g = $Gst
     InCraft @"
 `$env:PKG_CONFIG_PATH = '$g\lib\pkgconfig;' + `$env:PKG_CONFIG_PATH
