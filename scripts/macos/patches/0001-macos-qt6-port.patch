@@ -1,0 +1,258 @@
+diff --git a/src/App.cpp b/src/App.cpp
+index 25a2bb26fe..f45e793351 100644
+--- a/src/App.cpp
++++ b/src/App.cpp
+@@ -159,7 +159,7 @@ App::App(int &argc, char **argv)
+                     }
+                     path.prepend( bp );
+                     debug() << "setting PATH=" << path;
+-                    setenv("PATH", path, 1);
++                    setenv("PATH", path.constData(), 1);
+                 }
+             }
+             // docs say we are responsible for releasing CFURLRef
+@@ -167,6 +167,20 @@ App::App(int &argc, char **argv)
+         }
+     }
+ 
++    // QIcon on macOS does not search XDG_DATA_DIRS, so Amarok's own icon theme
++    // (<datadir>/amarok/icons) and installed themes would never be found.
++    const QStringList dataDirs = QString::fromLocal8Bit( qgetenv( "XDG_DATA_DIRS" ) ).split( QLatin1Char(':'), Qt::SkipEmptyParts );
++    QStringList iconPaths = QIcon::themeSearchPaths();
++    for( const QString &dir : dataDirs )
++    {
++        iconPaths << dir + QStringLiteral("/icons") << dir + QStringLiteral("/amarok/icons");
++    }
++    QIcon::setThemeSearchPaths( iconPaths );
++
++    // No theme is selected by default on macOS, so most themed icons (e.g. internet-services) don't resolve.
++    if( QIcon::themeName().isEmpty() )
++        QIcon::setThemeName( QStringLiteral("breeze") );
++
+     setupEventHandler_mac(this);
+ #endif
+ 
+diff --git a/src/TrayIcon.cpp b/src/TrayIcon.cpp
+index b964ab793c..e8198f67fc 100644
+--- a/src/TrayIcon.cpp
++++ b/src/TrayIcon.cpp
+@@ -43,9 +43,6 @@
+ #include <QStandardPaths>
+ #include <QToolTip>
+ 
+-#ifdef Q_OS_APPLE
+-    extern void qt_mac_set_dock_menu(QMenu *);
+-#endif
+ 
+ Amarok::TrayIcon::TrayIcon( QObject *parent )
+     : KStatusNotifierItem( parent )
+@@ -64,7 +61,7 @@ Amarok::TrayIcon::TrayIcon( QObject *parent )
+ 
+ #ifdef Q_OS_APPLE
+     // Add these functions to the dock icon menu in OS X
+-    qt_mac_set_dock_menu( contextMenu() );
++    contextMenu()->setAsDockMenu();
+     contextMenu()->addAction( ac->action( QStringLiteral("playlist_playmedia") ) );
+     contextMenu()->addSeparator();
+ #endif
+diff --git a/src/app_mac.cpp b/src/app_mac.cpp
+index d4c3ae4c5a..503e9f9be8 100644
+--- a/src/app_mac.cpp
++++ b/src/app_mac.cpp
+@@ -71,7 +71,7 @@ macCallbackUrlHandler( const AppleEvent *ae, AppleEvent *, long /*handlerRefCon*
+         if( error == noErr )
+         {
+             QUrl url( QString::fromUtf8( ba.data() ) );
+-            if( url.scheme() == "amarok" )
++            if( url.scheme() == QLatin1String( "amarok" ) )
+             {
+                 AmarokUrl aUrl( url.url() );
+                 aUrl.run();
+diff --git a/src/core-impl/storage/sql/mysqlestorage/MySqlEmbeddedStorage.cpp b/src/core-impl/storage/sql/mysqlestorage/MySqlEmbeddedStorage.cpp
+index 429a6f4817..e05a06bcd0 100644
+--- a/src/core-impl/storage/sql/mysqlestorage/MySqlEmbeddedStorage.cpp
++++ b/src/core-impl/storage/sql/mysqlestorage/MySqlEmbeddedStorage.cpp
+@@ -60,24 +60,34 @@ MySqlEmbeddedStorage::init( const QString &storageLocation )
+         databaseDir = dir.absolutePath() + QDir::separator() + QStringLiteral("mysqle");
+     }
+ 
+-    QVector<const char*> mysql_args;
+-    QByteArray dataDir = QStringLiteral( "--datadir=%1" ).arg( databaseDir ).toLocal8Bit();
+-    mysql_args << databaseName().toUtf8().constData()
+-               << dataDir.constData()
+-               // CAUTION: if we ever change the table type we will need to fix a number of MYISAM specific
+-               // functions, such as FULLTEXT indexing.
+-               << "--default-storage-engine=MyISAM"
+-               << "--innodb=OFF"
+-               << "--skip-grant-tables"
++    // The embedded server keeps pointers to these arguments (and re-reads them in
++    // mysql_real_connect()), so they must outlive the call. The array must also be
++    // NULL terminated.
++    static QList<QByteArray> mysql_arg_strings;
++    static QVector<const char*> mysql_args;
++    static int mysql_argc = 0;
++    if( mysql_args.isEmpty() )
++    {
++        mysql_arg_strings << databaseName().toUtf8()
++                          << QStringLiteral( "--datadir=%1" ).arg( databaseDir ).toLocal8Bit()
++                          // CAUTION: if we ever change the table type we will need to fix a number of MYISAM specific
++                          // functions, such as FULLTEXT indexing.
++                          << QByteArrayLiteral( "--default-storage-engine=MyISAM" )
++                          << QByteArrayLiteral( "--innodb=OFF" )
++                          << QByteArrayLiteral( "--skip-grant-tables" )
+ #if (defined(MYSQL_VERSION_ID)) && (MYSQL_VERSION_ID >= 50700)
+-               << "--myisam-recover-options=FORCE"
++                          << QByteArrayLiteral( "--myisam-recover-options=FORCE" )
+ #else
+-               << "--myisam-recover=FORCE"
++                          << QByteArrayLiteral( "--myisam-recover=FORCE" )
+ #endif
+-               << "--key-buffer-size=16777216" // (16Mb)
+-               << "--character-set-server=utf8mb4"
+-               << "--collation-server=utf8mb4_bin";
+-
++                          << QByteArrayLiteral( "--key-buffer-size=16777216" ) // (16Mb)
++                          << QByteArrayLiteral( "--character-set-server=utf8mb4" )
++                          << QByteArrayLiteral( "--collation-server=utf8mb4_bin" );
++        for( const QByteArray &arg : std::as_const( mysql_arg_strings ) )
++            mysql_args << arg.constData();
++        mysql_argc = mysql_args.size();
++        mysql_args << nullptr; // terminator, not counted in argc
++    }
+ 
+     if( !QFile::exists( databaseDir ) )
+     {
+@@ -89,7 +99,7 @@ MySqlEmbeddedStorage::init( const QString &storageLocation )
+     // we only need to do this once
+     if( !libraryInitRef.fetchAndAddOrdered( 1 ) )
+     {
+-        int ret = mysql_library_init( mysql_args.size(), const_cast<char**>(mysql_args.data()), nullptr );
++        int ret = mysql_library_init( mysql_argc, const_cast<char**>(mysql_args.data()), nullptr );
+         if( ret != 0 )
+         {
+             // mysql sources show that there is only 0 and 1 as return code
+diff --git a/src/mac/GrowlInterface.cpp b/src/mac/GrowlInterface.cpp
+index 2869bdae0e..82aa699966 100644
+--- a/src/mac/GrowlInterface.cpp
++++ b/src/mac/GrowlInterface.cpp
+@@ -25,6 +25,8 @@
+ #include "SvgHandler.h"
+ #include "TrayIcon.h"
+ 
++#include <KLocalizedString>
++
+ GrowlInterface::GrowlInterface( QString appName ) :
+                 m_appName( appName )
+ {
+@@ -45,11 +47,11 @@ GrowlInterface::show( Meta::TrackPtr track )
+     {
+         text = track->prettyName();
+         if( track->artist() && !track->artist()->prettyName().isEmpty() )
+-            text = track->artist()->prettyName() + " - " + text;
++            text = track->artist()->prettyName() + QStringLiteral( " - " ) + text;
+         if( track->album() && !track->album()->prettyName().isEmpty() )
+-            text += "\n (" + track->album()->prettyName() + ") ";
++            text += QStringLiteral( "\n (" ) + track->album()->prettyName() + QStringLiteral( ") " );
+         else
+-            text += '\n';
++            text += QLatin1Char( '\n' );
+         if( track->length() > 0 )
+             text += Meta::msToPrettyTime( track->length() );
+     }
+@@ -57,7 +59,7 @@ GrowlInterface::show( Meta::TrackPtr track )
+     if( text.isEmpty() )
+         text =  track->playableUrl().fileName();
+ 
+-    if( text.startsWith( "- " ) ) //When we only have a title tag, _something_ prepends a fucking hyphen. Remove that.
++    if( text.startsWith( QStringLiteral( "- " ) ) ) //When we only have a title tag, _something_ prepends a fucking hyphen. Remove that.
+         text = text.mid( 2 );
+ 
+     if( text.isEmpty() ) //still
+@@ -69,7 +71,7 @@ GrowlInterface::show( Meta::TrackPtr track )
+         {
+             pApp->trayIcon()->setIconByPixmap( The::svgHandler()->imageWithBorder( track->album(), 100, 5 ) );
+         }
+-        pApp->trayIcon()->showMessage( "Amarok", text, QString() );
++        pApp->trayIcon()->showMessage( QStringLiteral( "Amarok" ), text, QString() );
+     }
+ 
+ }
+diff --git a/src/mac/GrowlInterface.h b/src/mac/GrowlInterface.h
+index 1eeec25f51..cf9f127423 100644
+--- a/src/mac/GrowlInterface.h
++++ b/src/mac/GrowlInterface.h
+@@ -28,7 +28,7 @@
+ #include "EngineController.h"
+     
+  // NOTE if not on mac, this whole file is useless, so not even going to try
+-class GrowlInterface : QObject
++class GrowlInterface : public QObject
+ {
+     Q_OBJECT
+ 
+diff --git a/src/mac/MacSystemNotify.h b/src/mac/MacSystemNotify.h
+index f74ca680a0..4b4a64cfd7 100644
+--- a/src/mac/MacSystemNotify.h
++++ b/src/mac/MacSystemNotify.h
+@@ -27,7 +27,7 @@
+ #include "core/meta/forward_declarations.h"
+ #include "EngineController.h"
+ 
+-class OSXNotify : QObject
++class OSXNotify : public QObject
+ {
+     Q_OBJECT
+ 
+diff --git a/src/mac/MacSystemNotify.mm b/src/mac/MacSystemNotify.mm
+index 8e28ee33e9..0406b82312 100644
+--- a/src/mac/MacSystemNotify.mm
++++ b/src/mac/MacSystemNotify.mm
+@@ -26,6 +26,11 @@
+ #include "SvgHandler.h"
+ #include "TrayIcon.h"
+ 
++#include <KLocalizedString>
++#include <QBuffer>
++#include <QByteArray>
++#include <QPixmap>
++
+ #import <Foundation/NSUserNotification.h>
+ #import <ApplicationServices/ApplicationServices.h>
+ 
+@@ -77,9 +82,9 @@ OSXNotify::show( Meta::TrackPtr track )
+             albumString = track->album()->prettyName();
+         if( track->length() > 0 )
+         {
+-            text += " (";
++            text += QStringLiteral( " (" );
+             text += Meta::msToPrettyTime( track->length() );
+-            text += ')';
++            text += QLatin1Char( ')' );
+         }
+ 
+         if( text.isEmpty() )
+@@ -88,7 +93,7 @@ OSXNotify::show( Meta::TrackPtr track )
+         albumImage = The::coverCache()->getCover( track->album(), 100 );
+     }
+ 
+-    if( text.startsWith( "- " ) ) //When we only have a title tag, _something_ prepends a fucking hyphen. Remove that.
++    if( text.startsWith( QStringLiteral( "- " ) ) ) //When we only have a title tag, _something_ prepends a fucking hyphen. Remove that.
+         text = text.mid( 2 );
+ 
+     if( text.isEmpty() ) //still
+@@ -97,9 +102,12 @@ OSXNotify::show( Meta::TrackPtr track )
+     NSImage *nImage = 0;
+     if( !albumImage.isNull() )
+     {
+-        CGImageRef cgImage = albumImage.toMacCGImageRef();
+-        nImage = [[NSImage alloc] initWithCGImage:cgImage size:NSZeroSize];
+-        CFRelease(cgImage);
++        QByteArray pngData;
++        QBuffer buffer( &pngData );
++        buffer.open( QIODevice::WriteOnly );
++        albumImage.save( &buffer, "PNG" );
++        NSData *data = [NSData dataWithBytes:pngData.constData() length:pngData.size()];
++        nImage = [[NSImage alloc] initWithData:data];
+     }
+     if( artistString.isEmpty() )
+         artistString = i18n( "Unknown" );
