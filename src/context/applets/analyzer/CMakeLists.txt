@@ -23,6 +23,8 @@ target_link_libraries(amarok_context_applet_analyzer
     ${FFTW3_LIBRARIES}
 )
 
+target_include_directories(amarok_context_applet_analyzer PRIVATE ${FFTW3_INCLUDE_DIRS})
+
 install(TARGETS amarok_context_applet_analyzer DESTINATION ${KDE_INSTALL_QMLDIR}/org/kde/amarok/analyzer)
 install(FILES plugin/qmldir DESTINATION ${KDE_INSTALL_QMLDIR}/org/kde/amarok/analyzer)
 
