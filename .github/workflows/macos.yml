@@ -15,6 +15,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The runner's default Xcode (15.4) has a libc++ too old for KDE Frameworks 6.31; use the newest installed.
+      - name: Select the newest Xcode
+        run: |
+          x="$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)"
+          sudo xcode-select -s "$x"
+          echo "using $x"; clang++ --version | head -1
+
       # KF6 and MariaDB take hours to build; their install prefix is cached between runs. Each run saves
       # under a new key (even when it fails part-way), and the build stages resume from the markers inside.
       - name: Restore the KF6/MariaDB prefix
