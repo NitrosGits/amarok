@@ -1,0 +1,69 @@
+name: Windows
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+jobs:
+  build:
+    runs-on: windows-2022      # x64; Craft only builds x64 on Windows
+    timeout-minutes: 360
+    defaults:
+      run:
+        shell: powershell
+    env:
+      SCRIPT: scripts\windows\setup-and-build.ps1
+    steps:
+      - uses: actions/checkout@v4
+
+      # Craft's packages, MariaDB and GStreamer take hours; C:\CraftRoot and the stage markers are cached
+      # between runs. Each run saves under a new key (even if it fails part-way) and resumes from the markers.
+      - name: Restore the Craft root
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            C:\CraftRoot
+            C:\amarok-build\.done
+          key: windows-craft-${{ hashFiles('scripts/windows/setup-and-build.ps1', 'scripts/windows/patches/**') }}-${{ github.run_id }}
+          restore-keys: windows-craft-${{ hashFiles('scripts/windows/setup-and-build.ps1', 'scripts/windows/patches/**') }}-
+
+      - name: Prerequisites and Craft
+        run: |
+          & powershell -ExecutionPolicy Bypass -File $env:SCRIPT -Stage prereqs
+          & powershell -ExecutionPolicy Bypass -File $env:SCRIPT -Stage craft
+
+      - name: Dependencies
+        run: powershell -ExecutionPolicy Bypass -File $env:SCRIPT -Stage deps
+
+      - name: GStreamer
+        run: powershell -ExecutionPolicy Bypass -File $env:SCRIPT -Stage gstreamer
+
+      - name: MariaDB (embedded server)
+        run: powershell -ExecutionPolicy Bypass -File $env:SCRIPT -Stage mariadb
+
+      - name: Save the Craft root
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            C:\CraftRoot
+            C:\amarok-build\.done
+          key: windows-craft-${{ hashFiles('scripts/windows/setup-and-build.ps1', 'scripts/windows/patches/**') }}-${{ github.run_id }}
+
+      - name: Amarok
+        run: powershell -ExecutionPolicy Bypass -File $env:SCRIPT -Stage amarok
+
+      - name: Post-install and smoke test
+        run: |
+          powershell -ExecutionPolicy Bypass -File $env:SCRIPT -Stage post
+          powershell -ExecutionPolicy Bypass -File $env:SCRIPT -Stage test
+
+      - name: Installer (NSIS)
+        run: powershell -ExecutionPolicy Bypass -File scripts\windows\package.ps1 -Out C:\dist-windows
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Amarok-windows-x64-setup
+          path: C:\dist-windows\*-setup.exe
+          if-no-files-found: error

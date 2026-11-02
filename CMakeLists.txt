@@ -222,6 +222,11 @@ if( CMAKE_BUILD_TYPE_TOLOWER MATCHES debug )
     endif()
 endif()
 
+if (MSVC)
+    # the generated moc compilation unit exceeds the default COFF section limit
+    add_compile_options(/bigobj)
+endif()
+
 option(WITH_MYSQL "Build with MySQL/MariaDB storage backend" ON)
 
 add_subdirectory( data )
@@ -322,12 +327,17 @@ if( WITH_PLAYER )
     endif()
 
     add_subdirectory( src )
-    add_subdirectory( doc )
+    option(WITH_DOC "Build and install the handbook" ON)
+    if( WITH_DOC )
+        add_subdirectory( doc )
+    endif()
 
     feature_summary(WHAT ALL FATAL_ON_MISSING_REQUIRED_PACKAGES)
 
     ki18n_install( po )
-    kdoctools_install( po )
+    if( WITH_DOC )
+        kdoctools_install( po )
+    endif()
 endif()
 
 # this needs to be here because also code in shared/ needs config.h. This is also the
