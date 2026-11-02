@@ -52,6 +52,10 @@ deps() {
   brew install cmake ninja pkgconf qt extra-cmake-modules taglib gstreamer \
     mariadb libmtp fftw libgcrypt libxml2 googletest glib gdk-pixbuf curl \
     openssl@3 gettext libarchive bison flex docbook-xsl shared-mime-info dbus
+  # kdoctools needs URI::Escape, which not every Perl install has (CI runners do not)
+  perl -MURI::Escape -e1 2>/dev/null || PERL_MM_USE_DEFAULT=1 cpan -T URI::Escape >/dev/null 2>&1 \
+    || sudo env PERL_MM_USE_DEFAULT=1 cpan -T URI::Escape >/dev/null
+  perl -MURI::Escape -e1 || { echo "Perl module URI::Escape is missing"; exit 1; }
 }
 
 # breeze-icons generates the 24px icon set with a python script that needs lxml.
