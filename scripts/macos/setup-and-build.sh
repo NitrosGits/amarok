@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Build Amarok on macOS (Apple Silicon/Intel). Idempotent: re-run to resume.
-# Usage: scripts/macos/setup-and-build.sh [deps|kf6|mariadb|patch|amarok|link|run|all]
+# Usage: scripts/macos/setup-and-build.sh [prereqs|deps|kf6|mariadb|patch|amarok|link|run|all]
 set -euo pipefail
 
 KF_TAG="${KF_TAG:-v6.31.0}"
@@ -8,8 +8,11 @@ PREFIX="${KF_PREFIX:-$HOME/kde-prefix}"
 SRC="${KF_SRC:-$HOME/kde-src}"
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 BUILD="${AMAROK_BUILD:-$REPO/build-macos}"
-BREW="$(brew --prefix)"
-QT="$(brew --prefix qt)"
+# Homebrew may not be installed yet (the prereqs stage installs it); pick it up from its default prefixes.
+if ! command -v brew >/dev/null 2>&1; then
+  for p in /opt/homebrew/bin /usr/local/bin; do [ -x "$p/brew" ] && PATH="$p:$PATH"; done
+fi
+if command -v brew >/dev/null 2>&1; then BREW="$(brew --prefix)"; QT="$(brew --prefix qt)"; else BREW=""; QT=""; fi
 JOBS="$(sysctl -n hw.ncpu)"
 
 # KF6 frameworks in dependency order (includes transitive deps of what Amarok needs).
@@ -22,7 +25,30 @@ FRAMEWORKS=(
   kstatusnotifieritem kdnssd
 )
 
+# A clean macOS has neither the Xcode command-line tools nor Homebrew. Both installers need an admin
+# account; Homebrew's NONINTERACTIVE mode additionally needs sudo without a password prompt
+# (or run this stage once from an interactive terminal).
+prereqs() {
+  if ! xcode-select -p >/dev/null 2>&1; then
+    echo "== installing the Xcode command-line tools"
+    touch /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
+    local clt; clt="$(softwareupdate -l 2>/dev/null | sed -n 's/^\* Label: \(Command Line Tools.*\)$/\1/p' | sort -V | tail -1)"
+    [ -n "$clt" ] || { echo "could not find the Command Line Tools update; run: xcode-select --install"; exit 1; }
+    sudo softwareupdate -i "$clt" --verbose
+    rm -f /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
+  fi
+  if ! command -v brew >/dev/null 2>&1; then
+    echo "== installing Homebrew"
+    NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    for p in /opt/homebrew/bin /usr/local/bin; do [ -x "$p/brew" ] && PATH="$p:$PATH"; done
+  fi
+  command -v brew >/dev/null 2>&1 || { echo "Homebrew is still not on PATH"; exit 1; }
+  BREW="$(brew --prefix)"; QT="$(brew --prefix qt)"
+  echo "== prereqs done: $(xcode-select -p), brew at $BREW"
+}
+
 deps() {
+  [ -n "$BREW" ] || { echo "Homebrew not found: run '$0 prereqs' first"; exit 1; }
   brew install cmake ninja pkgconf qt extra-cmake-modules taglib gstreamer \
     mariadb libmtp fftw libgcrypt libxml2 googletest glib gdk-pixbuf curl \
     openssl@3 gettext libarchive bison flex docbook-xsl shared-mime-info
@@ -139,7 +165,7 @@ run() {
 }
 
 case "${1:-all}" in
-  deps) deps ;; kf6) kf6 ;; mariadb) mariadb ;; patch) patch_source ;; amarok) amarok ;; link) link_data ;; run) run "$@" ;;
-  all) deps; kf6; mariadb; amarok ;;
-  *) echo "usage: $0 [deps|kf6|mariadb|patch|amarok|link|run|all]"; exit 1 ;;
+  prereqs) prereqs ;; deps) deps ;; kf6) kf6 ;; mariadb) mariadb ;; patch) patch_source ;; amarok) amarok ;; link) link_data ;; run) run "$@" ;;
+  all) prereqs; deps; kf6; mariadb; amarok ;;
+  *) echo "usage: $0 [prereqs|deps|kf6|mariadb|patch|amarok|link|run|all]"; exit 1 ;;
 esac
