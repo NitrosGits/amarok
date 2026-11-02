@@ -25,7 +25,7 @@ if (-not $Out) { $Out = Join-Path $Repo 'dist-windows' }
 function Fail($m) { Write-Host "ERROR: $m" -ForegroundColor Red; exit 1 }
 function Log($m) { Write-Host ("[{0}] {1}" -f (Get-Date -f HH:mm:ss), $m) -ForegroundColor Cyan }
 
-if (-not (Test-Path "$Craft\bin\amarok.exe")) { Fail "no build in $Craft: run setup-and-build.ps1 first" }
+if (-not (Test-Path "$Craft\bin\amarok.exe")) { Fail "no build in ${Craft}: run setup-and-build.ps1 first" }
 if (-not (Test-Path $Curated)) { Fail "$Curated is missing: run setup-and-build.ps1 -Stage post" }
 if (-not $Version) { $Version = '2.8.0' }
 
@@ -33,9 +33,18 @@ $makensis = (Get-Command makensis -ErrorAction SilentlyContinue).Source
 if (-not $makensis) { $makensis = @("${env:ProgramFiles(x86)}\NSIS\makensis.exe", "$env:ProgramFiles\NSIS\makensis.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1 }
 if (-not $makensis) {
     Log 'installing NSIS'
-    if (-not (Get-Command choco -ErrorAction SilentlyContinue)) { Fail 'NSIS is missing and Chocolatey is not available: install NSIS from https://nsis.sourceforge.io' }
-    choco install nsis -y --no-progress | Out-Null
-    $makensis = "${env:ProgramFiles(x86)}\NSIS\makensis.exe"
+    if (Get-Command choco -ErrorAction SilentlyContinue) {
+        choco install nsis -y --no-progress | Out-Null
+        $makensis = "${env:ProgramFiles(x86)}\NSIS\makensis.exe"
+    } else {
+        # portable copy: the zip unpacks into one nsis-<version> folder
+        $nz = Join-Path $env:TEMP 'nsis.zip'; $nd = Join-Path $env:TEMP 'nsis-portable'
+        Invoke-WebRequest 'https://sourceforge.net/projects/nsis/files/NSIS%203/3.10/nsis-3.10.zip/download' -OutFile $nz -UserAgent 'curl/8' -ErrorAction Stop
+        Remove-Item $nd -Recurse -Force -ErrorAction SilentlyContinue
+        Expand-Archive $nz $nd -Force
+        $makensis = (Get-ChildItem $nd -Recurse -Filter makensis.exe | Select-Object -First 1).FullName
+        $env:NSISDIR = Split-Path $makensis
+    }
 }
 if (-not (Test-Path $makensis)) { Fail 'makensis not found' }
 

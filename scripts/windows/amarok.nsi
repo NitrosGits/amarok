@@ -22,6 +22,16 @@ SetCompressor /SOLID lzma
 !insertmacro MUI_UNPAGE_INSTFILES
 !insertmacro MUI_LANGUAGE "English"
 
+; 64-bit registry view (this is a 32-bit NSIS stub) and the all-users Start Menu
+Function .onInit
+  SetRegView 64
+  SetShellVarContext all
+FunctionEnd
+Function un.onInit
+  SetRegView 64
+  SetShellVarContext all
+FunctionEnd
+
 Section "Amarok" SecMain
   SectionIn RO
   ${IfNot} ${RunningX64}
