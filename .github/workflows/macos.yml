@@ -22,14 +22,15 @@ jobs:
           sudo xcode-select -s "$x"
           echo "using $x"; clang++ --version | head -1
 
-      # KF6 and MariaDB take hours to build; their install prefix is cached between runs. Each run saves
+      # KF6 and MariaDB take a long time to build; their install prefix is cached between runs. The key covers only what
+      # changes the prefix (bump v1 when the KF6 list, versions or flags in setup-and-build.sh change). Each run saves
       # under a new key (even when it fails part-way), and the build stages resume from the markers inside.
       - name: Restore the KF6/MariaDB prefix
         uses: actions/cache/restore@v4
         with:
           path: ${{ env.KF_PREFIX }}
-          key: macos-prefix-${{ hashFiles('scripts/macos/setup-and-build.sh', 'scripts/macos/patches/**', 'scripts/macos/qt-private.cmake') }}-${{ github.run_id }}
-          restore-keys: macos-prefix-${{ hashFiles('scripts/macos/setup-and-build.sh', 'scripts/macos/patches/**', 'scripts/macos/qt-private.cmake') }}-
+          key: macos-prefix-v1-${{ hashFiles('scripts/macos/patches/mariadb/**', 'scripts/macos/qt-private.cmake') }}-${{ github.run_id }}
+          restore-keys: macos-prefix-v1-${{ hashFiles('scripts/macos/patches/mariadb/**', 'scripts/macos/qt-private.cmake') }}-
 
       - name: Dependencies (Homebrew)
         run: scripts/macos/setup-and-build.sh deps
@@ -45,7 +46,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: ${{ env.KF_PREFIX }}
-          key: macos-prefix-${{ hashFiles('scripts/macos/setup-and-build.sh', 'scripts/macos/patches/**', 'scripts/macos/qt-private.cmake') }}-${{ github.run_id }}
+          key: macos-prefix-v1-${{ hashFiles('scripts/macos/patches/mariadb/**', 'scripts/macos/qt-private.cmake') }}-${{ github.run_id }}
 
       - name: Amarok
         run: scripts/macos/setup-and-build.sh amarok
