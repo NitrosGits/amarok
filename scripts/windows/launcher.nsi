@@ -10,6 +10,7 @@ Section
   System::Call 'kernel32::SetEnvironmentVariable(t "GST_PLUGIN_SYSTEM_PATH", t "$EXEDIR\gstreamer\plugins")'
   System::Call 'kernel32::SetEnvironmentVariable(t "GST_PLUGIN_PATH", t "$EXEDIR\gstreamer\plugins")'
   System::Call 'kernel32::SetEnvironmentVariable(t "GST_PLUGIN_SCANNER", t "$EXEDIR\gstreamer\bin\gst-plugin-scanner.exe")'
+  System::Call 'kernel32::SetEnvironmentVariable(t "QT_PLUGIN_PATH", t "$EXEDIR\plugins")'   ; also reaches KIO workers
   ReadEnvStr $0 PATH
   System::Call 'kernel32::SetEnvironmentVariable(t "PATH", t "$EXEDIR\bin;$EXEDIR\gstreamer\bin;$0")'
   SetOutPath "$EXEDIR\bin"

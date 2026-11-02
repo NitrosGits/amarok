@@ -58,6 +58,8 @@ foreach ($d in 'bin','plugins','qml','share','etc','resources','translations') {
 }
 # bin\ also holds Craft's build tools; keep only what Amarok runs
 Get-ChildItem "$app\bin" -Filter *.exe | Where-Object { $_.Name -notmatch '^(amarok|kioworker|dbus-daemon|kbuildsycoca6|kded6|kiod6)' } | Remove-Item -Force
+# Craft's Qt is configured for C:\CraftRoot; point it at the installed plugins and QML instead
+Set-Content -Path (Join-Path $app 'bin\qt.conf') -Value "[Paths]`r`nPrefix = ..`r`nPlugins = plugins`r`nQml2Imports = qml`r`n" -Encoding ASCII
 $gb = Join-Path $app 'gstreamer\bin'
 New-Item -ItemType Directory -Force $gb, (Join-Path $app 'gstreamer\plugins') | Out-Null
 Copy-Item "$Gst\bin\*.dll" $gb -Force
