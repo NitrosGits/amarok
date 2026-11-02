@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: macos-15          # Apple Silicon
+    runs-on: macos-14          # Apple Silicon
     timeout-minutes: 360
     env:
       KF_PREFIX: ${{ github.workspace }}/../kde-prefix
