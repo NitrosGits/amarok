@@ -18,12 +18,13 @@
 #ifndef SYNCEDPLAYLIST_H
 #define SYNCEDPLAYLIST_H
 
+#include "amarok_export.h"
 #include "core/playlists/Playlist.h"
 
 /** A synchronized playlist that will try to get the attached slaves into the same state as the
   * master. The first playlist attached (through constructor) is the master.
   */
-class __attribute__((visibility("default"))) SyncedPlaylist : public Playlists::Playlist, public Playlists::PlaylistObserver
+class AMAROK_EXPORT SyncedPlaylist : public Playlists::Playlist, public Playlists::PlaylistObserver
 {
     public:
         explicit SyncedPlaylist( const Playlists::PlaylistPtr &playlist );

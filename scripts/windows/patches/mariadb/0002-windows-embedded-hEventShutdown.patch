@@ -1,0 +1,22 @@
+diff --git a/sql/mysqld.cc b/sql/mysqld.cc
+index 65e088fd..04e463cc 100644
+--- a/sql/mysqld.cc
++++ b/sql/mysqld.cc
+@@ -1450,15 +1450,13 @@ static pthread_t select_thread;
+ #endif
+ 
+ /* OS specific variables */
+-#ifndef EMBEDDED_LIBRARY
+ #ifdef _WIN32
+-/** wakeup main thread by signaling this event */
++/** wakeup main thread by signaling this event (also referenced by the embedded build) */
+ HANDLE hEventShutdown;
+-#else
++#elif !defined(EMBEDDED_LIBRARY)
+ /** wakeup listening(main) thread by writing to this descriptor */
+ static int termination_event_fd= -1;
+ #endif
+-#endif
+ 
+ 
+ #ifndef EMBEDDED_LIBRARY
