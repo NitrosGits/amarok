@@ -24,6 +24,7 @@
 #include <core/support/Debug.h>
 
 #include <QDir>
+#include <QStandardPaths>
 #include <QVarLengthArray>
 #include <QVector>
 #include <QAtomicInt>
@@ -83,6 +84,15 @@ MySqlEmbeddedStorage::init( const QString &storageLocation )
                           << QByteArrayLiteral( "--key-buffer-size=16777216" ) // (16Mb)
                           << QByteArrayLiteral( "--character-set-server=utf8mb4" )
                           << QByteArrayLiteral( "--collation-server=utf8mb4_bin" );
+#ifdef Q_OS_MACOS
+        // A packaged app has no install prefix to find the server's message and charset files in;
+        // they ship in the bundle's resources.
+        const QString serverData = QStandardPaths::locate( QStandardPaths::GenericDataLocation,
+                                                           QStringLiteral( "mysql" ), QStandardPaths::LocateDirectory );
+        if( !serverData.isEmpty() )
+            mysql_arg_strings << QStringLiteral( "--lc-messages-dir=%1" ).arg( serverData ).toLocal8Bit()
+                              << QStringLiteral( "--character-sets-dir=%1/charsets" ).arg( serverData ).toLocal8Bit();
+#endif
         for( const QByteArray &arg : std::as_const( mysql_arg_strings ) )
             mysql_args << arg.constData();
         mysql_argc = mysql_args.size();

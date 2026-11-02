@@ -16,3 +16,4 @@ Debug
 
 #QtCreator
 qtcreator-build
+/dist-macos/
