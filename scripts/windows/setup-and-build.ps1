@@ -35,6 +35,9 @@ param(
 # Windows PowerShell 5.1 turns a native program's stderr text (git progress, Craft's banner) into a
 # terminating error under 'Stop' once output is redirected, so check exit codes explicitly instead.
 $ErrorActionPreference = 'Continue'
+# CraftBootstrap.py treats a machine with ANDROID_SDK_ROOT and ANDROID_NDK set (GitHub's runners) as an Android
+# build and switches to MinSizeRel, for which Craft has no binary cache for Windows: it then compiles everything.
+foreach ($v in 'ANDROID_SDK_ROOT','ANDROID_NDK','ANDROID_NDK_HOME','ANDROID_NDK_ROOT','ANDROID_HOME') { Remove-Item "Env:$v" -ErrorAction SilentlyContinue }
 if (-not $Gst) { $Gst = Join-Path $Craft 'gstreamer\1.0\msvc_x86_64' }
 $ProgressPreference = 'SilentlyContinue'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
