@@ -127,7 +127,7 @@ mariadb() {
   cmake -S "$SRC/mariadb" -B "$SRC/mariadb/build" -G Ninja -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX="$PREFIX" -DWITH_EMBEDDED_SERVER=ON -DWITH_UNIT_TESTS=OFF \
     -DPLUGIN_TOKUDB=NO -DPLUGIN_ROCKSDB=NO -DPLUGIN_MROONGA=NO -DPLUGIN_SPIDER=NO \
-    -DPLUGIN_CONNECT=NO -DWITH_WSREP=OFF -DWITH_SSL=system -DOPENSSL_ROOT_DIR="$(brew --prefix openssl@3)"
+    -DPLUGIN_CONNECT=NO -DWITH_WSREP=OFF -DWITH_ZLIB=bundled -DWITH_SSL=system -DOPENSSL_ROOT_DIR="$(brew --prefix openssl@3)"
   cmake --build "$SRC/mariadb/build" --target install -j"$JOBS"
   touch "$PREFIX/.built-mariadb"
 }
