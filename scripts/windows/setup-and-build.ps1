@@ -70,7 +70,15 @@ function InCraft([string]$Script) {
 function Download($url, $out) {
     if (Test-Path $out) { return }
     Log "downloading $url"
-    Invoke-WebRequest $url -OutFile $out -ErrorAction Stop
+    # invent.kde.org answers 403 to PowerShell's default user agent from some networks (GitHub's runners)
+    $ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36'
+    try { Invoke-WebRequest $url -OutFile $out -UserAgent $ua -ErrorAction Stop }
+    catch {
+        $mirror = $url -replace '^https://invent\.kde\.org/packaging/craft/-/raw/master/', 'https://raw.githubusercontent.com/KDE/craft/master/'
+        if ($mirror -eq $url) { throw }
+        Log "failed ($($_.Exception.Message)); trying $mirror"
+        Invoke-WebRequest $mirror -OutFile $out -UserAgent $ua -ErrorAction Stop
+    }
 }
 
 # ---------------------------------------------------------------------------------------------
@@ -114,6 +122,7 @@ function Stage-Craft {
     $py = (Get-Command python).Source
     $boot = "$Craft\download\CraftBootstrap.py"
     Download 'https://invent.kde.org/packaging/craft/-/raw/master/setup/CraftBootstrap.py' $boot
+    if (-not (Test-Path $boot)) { Fail 'could not download CraftBootstrap.py' }
     Log 'bootstrapping Craft'
     & $py $boot --prefix $Craft --branch master --use-defaults
     if ($LASTEXITCODE -ne 0) { Fail 'Craft bootstrap failed' }
