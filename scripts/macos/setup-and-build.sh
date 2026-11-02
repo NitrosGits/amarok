@@ -51,7 +51,7 @@ deps() {
   [ -n "$BREW" ] || { echo "Homebrew not found: run '$0 prereqs' first"; exit 1; }
   brew install cmake ninja pkgconf qt extra-cmake-modules taglib gstreamer \
     mariadb libmtp fftw libgcrypt libxml2 googletest glib gdk-pixbuf curl \
-    openssl@3 gettext libarchive bison flex docbook-xsl shared-mime-info dbus
+    openssl@3 gettext libarchive libxslt bison flex docbook-xsl shared-mime-info dbus
   # kdoctools needs URI::Escape, which not every Perl install has (CI runners do not)
   perl -MURI::Escape -e1 2>/dev/null || PERL_MM_USE_DEFAULT=1 cpan -T URI::Escape >/dev/null 2>&1 \
     || sudo env PERL_MM_USE_DEFAULT=1 cpan -T URI::Escape >/dev/null
@@ -70,8 +70,9 @@ kf6() {
   local PY; PY="$(icon_python)"
   export PATH="$BREW/opt/bison/bin:$BREW/opt/flex/bin:$PATH"
   mkdir -p "$SRC" "$PREFIX"
-  export CMAKE_PREFIX_PATH="$PREFIX:$QT:$BREW:$BREW/opt/gettext:$BREW/opt/libarchive"
-  export PKG_CONFIG_PATH="$PREFIX/lib/pkgconfig:$PREFIX/share/pkgconfig:${PKG_CONFIG_PATH:-}"
+  # Homebrew's libxml2/libxslt, not the SDK's copies: the SDK ones put its usr/include ahead of libc++'s headers
+  export CMAKE_PREFIX_PATH="$PREFIX:$QT:$BREW/opt/libxml2:$BREW/opt/libxslt:$BREW:$BREW/opt/gettext:$BREW/opt/libarchive"
+  export PKG_CONFIG_PATH="$PREFIX/lib/pkgconfig:$PREFIX/share/pkgconfig:$BREW/opt/libxml2/lib/pkgconfig:$BREW/opt/libxslt/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
   for f in "${FRAMEWORKS[@]}"; do
     [ -f "$PREFIX/.built-$f" ] && { echo "== $f (done)"; continue; }
     echo "== building $f"
