@@ -10,8 +10,8 @@ jobs:
     runs-on: macos-14          # Apple Silicon
     timeout-minutes: 360
     env:
-      KF_PREFIX: ${{ github.workspace }}/../kde-prefix
-      KF_SRC: ${{ github.workspace }}/../kde-src
+      KF_PREFIX: /Users/runner/kde-prefix     # the cache action rejects paths containing '..'
+      KF_SRC: /Users/runner/kde-src
     steps:
       - uses: actions/checkout@v4
 
@@ -28,7 +28,7 @@ jobs:
       - name: Restore the KF6/MariaDB prefix
         uses: actions/cache/restore@v4
         with:
-          path: ${{ env.KF_PREFIX }}
+          path: /Users/runner/kde-prefix
           key: macos-prefix-v1-${{ hashFiles('scripts/macos/patches/mariadb/**', 'scripts/macos/qt-private.cmake') }}-${{ github.run_id }}
           restore-keys: macos-prefix-v1-${{ hashFiles('scripts/macos/patches/mariadb/**', 'scripts/macos/qt-private.cmake') }}-
 
@@ -45,7 +45,7 @@ jobs:
         if: always()
         uses: actions/cache/save@v4
         with:
-          path: ${{ env.KF_PREFIX }}
+          path: /Users/runner/kde-prefix
           key: macos-prefix-v1-${{ hashFiles('scripts/macos/patches/mariadb/**', 'scripts/macos/qt-private.cmake') }}-${{ github.run_id }}
 
       - name: Amarok
