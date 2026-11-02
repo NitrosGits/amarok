@@ -1,5 +1,5 @@
 ; NSIS installer for Amarok (Windows x64). Built by scripts\windows\package.ps1, which passes
-;   /DSTAGE=<staging dir> /DVERSION=<x.y.z> /DOUTFILE=<installer path> /DLAUNCHER=<AmarokLauncher.exe>
+;   /DSTAGE=<staging dir> /DVERSION=<x.y.z> /DOUTFILE=<installer path> /DLAUNCHER=<AmarokLauncher.exe> /DICON=<amarok.ico>
 Unicode true
 !include "MUI2.nsh"
 !include "x64.nsh"
@@ -11,8 +11,8 @@ InstallDirRegKey HKLM "Software\Amarok" "InstallDir"
 RequestExecutionLevel admin
 SetCompressor /SOLID lzma
 
-!define MUI_ICON "${NSISDIR}\Contrib\Graphics\Icons\modern-install.ico"
-!define MUI_UNICON "${NSISDIR}\Contrib\Graphics\Icons\modern-uninstall.ico"
+!define MUI_ICON "${ICON}"
+!define MUI_UNICON "${ICON}"
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
@@ -55,6 +55,7 @@ Section "Amarok" SecMain
 
   WriteRegStr HKLM "Software\Amarok" "InstallDir" "$INSTDIR"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Amarok" "DisplayName" "Amarok"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Amarok" "DisplayIcon" "$INSTDIR\Amarok.exe"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Amarok" "DisplayVersion" "${VERSION}"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Amarok" "Publisher" "Amarok Team"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Amarok" "UninstallString" '"$INSTDIR\Uninstall.exe"'

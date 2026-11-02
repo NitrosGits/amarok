@@ -67,8 +67,10 @@ Copy-Item "$Gst\libexec\gstreamer-1.0\gst-plugin-scanner.exe" $gb -Force -ErrorA
 Copy-Item "$Curated\*.dll" (Join-Path $app 'gstreamer\plugins') -Force
 
 Log 'building the launcher'
+$icon = Join-Path $Repo 'release_scripts\windows\amarok.ico'
+if (-not (Test-Path $icon)) { Fail "missing $icon" }
 $launcher = Join-Path $stage 'Amarok.exe'
-& $makensis /V1 "/DOUT=$launcher" (Join-Path $PSScriptRoot 'launcher.nsi')
+& $makensis /V1 "/DOUT=$launcher" "/DICON=$icon" (Join-Path $PSScriptRoot 'launcher.nsi')
 if ($LASTEXITCODE -ne 0 -or -not (Test-Path $launcher)) { Fail 'launcher build failed' }
 
 Log 'fetching the Visual C++ runtime'
@@ -76,6 +78,6 @@ Invoke-WebRequest 'https://aka.ms/vs/17/release/vc_redist.x64.exe' -OutFile (Joi
 
 $installer = Join-Path $Out "Amarok-$Version-win64-setup.exe"
 Log "building $installer"
-& $makensis /V2 "/DSTAGE=$stage" "/DVERSION=$Version" "/DOUTFILE=$installer" "/DLAUNCHER=$launcher" (Join-Path $PSScriptRoot 'amarok.nsi')
+& $makensis /V2 "/DSTAGE=$stage" "/DVERSION=$Version" "/DOUTFILE=$installer" "/DLAUNCHER=$launcher" "/DICON=$icon" (Join-Path $PSScriptRoot 'amarok.nsi')
 if ($LASTEXITCODE -ne 0 -or -not (Test-Path $installer)) { Fail 'installer build failed' }
 Log ("done: {0} ({1:N0} MB)" -f $installer, ((Get-Item $installer).Length / 1MB))

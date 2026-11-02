@@ -4,7 +4,7 @@ Unicode true
 OutFile "${OUT}"
 RequestExecutionLevel user
 SilentInstall silent
-Icon "${NSISDIR}\Contrib\Graphics\Icons\modern-install.ico"
+Icon "${ICON}"
 
 Section
   System::Call 'kernel32::SetEnvironmentVariable(t "GST_PLUGIN_SYSTEM_PATH", t "$EXEDIR\gstreamer\plugins")'
