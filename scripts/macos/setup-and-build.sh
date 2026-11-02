@@ -51,7 +51,7 @@ deps() {
   [ -n "$BREW" ] || { echo "Homebrew not found: run '$0 prereqs' first"; exit 1; }
   brew install cmake ninja pkgconf qt extra-cmake-modules taglib gstreamer \
     mariadb libmtp fftw libgcrypt libxml2 googletest glib gdk-pixbuf curl \
-    openssl@3 gettext libarchive bison flex docbook-xsl shared-mime-info
+    openssl@3 gettext libarchive bison flex docbook-xsl shared-mime-info dbus
 }
 
 # breeze-icons generates the 24px icon set with a python script that needs lxml.

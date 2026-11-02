@@ -1,0 +1,56 @@
+name: macOS
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+jobs:
+  build:
+    runs-on: macos-15          # Apple Silicon
+    timeout-minutes: 360
+    env:
+      KF_PREFIX: ${{ github.workspace }}/../kde-prefix
+      KF_SRC: ${{ github.workspace }}/../kde-src
+    steps:
+      - uses: actions/checkout@v4
+
+      # KF6 and MariaDB take hours to build; their install prefix is cached between runs. Each run saves
+      # under a new key (even when it fails part-way), and the build stages resume from the markers inside.
+      - name: Restore the KF6/MariaDB prefix
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.KF_PREFIX }}
+          key: macos-prefix-${{ hashFiles('scripts/macos/setup-and-build.sh', 'scripts/macos/patches/**', 'scripts/macos/qt-private.cmake') }}-${{ github.run_id }}
+          restore-keys: macos-prefix-${{ hashFiles('scripts/macos/setup-and-build.sh', 'scripts/macos/patches/**', 'scripts/macos/qt-private.cmake') }}-
+
+      - name: Dependencies (Homebrew)
+        run: scripts/macos/setup-and-build.sh deps
+
+      - name: KDE Frameworks
+        run: scripts/macos/setup-and-build.sh kf6
+
+      - name: MariaDB (embedded server)
+        run: scripts/macos/setup-and-build.sh mariadb
+
+      - name: Save the prefix
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.KF_PREFIX }}
+          key: macos-prefix-${{ hashFiles('scripts/macos/setup-and-build.sh', 'scripts/macos/patches/**', 'scripts/macos/qt-private.cmake') }}-${{ github.run_id }}
+
+      - name: Amarok
+        run: scripts/macos/setup-and-build.sh amarok
+
+      - name: Package
+        run: scripts/macos/package.sh all
+
+      - name: Smoke test
+        run: dist-macos/Amarok.app/Contents/MacOS/amarok-bin --version
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Amarok-macOS-arm64
+          path: dist-macos/*.dmg
+          if-no-files-found: error
