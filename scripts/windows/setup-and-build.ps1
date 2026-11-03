@@ -35,6 +35,9 @@ param(
 # Windows PowerShell 5.1 turns a native program's stderr text (git progress, Craft's banner) into a
 # terminating error under 'Stop' once output is redirected, so check exit codes explicitly instead.
 $ErrorActionPreference = 'Continue'
+# CraftBootstrap.py treats a machine with ANDROID_SDK_ROOT and ANDROID_NDK set (GitHub's runners) as an Android
+# build and switches to MinSizeRel, for which Craft has no binary cache for Windows: it then compiles everything.
+foreach ($v in 'ANDROID_SDK_ROOT','ANDROID_NDK','ANDROID_NDK_HOME','ANDROID_NDK_ROOT','ANDROID_HOME') { Remove-Item "Env:$v" -ErrorAction SilentlyContinue }
 if (-not $Gst) { $Gst = Join-Path $Craft 'gstreamer\1.0\msvc_x86_64' }
 $ProgressPreference = 'SilentlyContinue'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -70,7 +73,15 @@ function InCraft([string]$Script) {
 function Download($url, $out) {
     if (Test-Path $out) { return }
     Log "downloading $url"
-    Invoke-WebRequest $url -OutFile $out -ErrorAction Stop
+    # invent.kde.org answers 403 to PowerShell's default user agent from some networks (GitHub's runners)
+    $ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36'
+    try { Invoke-WebRequest $url -OutFile $out -UserAgent $ua -ErrorAction Stop }
+    catch {
+        $mirror = $url -replace '^https://invent\.kde\.org/packaging/craft/-/raw/master/', 'https://raw.githubusercontent.com/KDE/craft/master/'
+        if ($mirror -eq $url) { throw }
+        Log "failed ($($_.Exception.Message)); trying $mirror"
+        Invoke-WebRequest $mirror -OutFile $out -UserAgent $ua -ErrorAction Stop
+    }
 }
 
 # ---------------------------------------------------------------------------------------------
@@ -114,6 +125,7 @@ function Stage-Craft {
     $py = (Get-Command python).Source
     $boot = "$Craft\download\CraftBootstrap.py"
     Download 'https://invent.kde.org/packaging/craft/-/raw/master/setup/CraftBootstrap.py' $boot
+    if (-not (Test-Path $boot)) { Fail 'could not download CraftBootstrap.py' }
     Log 'bootstrapping Craft'
     & $py $boot --prefix $Craft --branch master --use-defaults
     if ($LASTEXITCODE -ne 0) { Fail 'Craft bootstrap failed' }
