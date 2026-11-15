@@ -10,7 +10,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: amarok\n"
 "Report-Msgid-Bugs-To: https://bugs.kde.org\n"
-"POT-Creation-Date: 2026-09-14 00:42+0000\n"
+"POT-Creation-Date: 2026-11-08 02:56+0000\n"
 "PO-Revision-Date: 2013-10-23 10:56+0200\n"
 "Last-Translator: Bjørn Steensrud <bjornst@skogkatt.homelinux.org>\n"
 "Language-Team: Norwegian Bokmål <l10n-no@nuug.no>\n"
@@ -705,7 +705,7 @@ msgstr "Dempet tilstand"
 #: amarokconfig.kcfg:205
 #, kde-format
 msgid "Mute/Unmute sound."
-msgstr "Demp lyd av/på."
+msgstr "Demp lyd på/av."
 
 #. i18n: ectx: label, entry, group (Playback)
 #: amarokconfig.kcfg:209
@@ -1458,7 +1458,7 @@ msgstr "Om innebygde skripter skal oppdateres automatisk"
 #: amarokconfig.kcfg:593
 #, kde-format
 msgid "Enable/Disable automatic update for built-in scripts."
-msgstr "Vend automatisk oppdatering for innebygde skripter av/på."
+msgstr "Vend automatisk oppdatering for innebygde skripter på/av."
 
 #. i18n: ectx: label, entry, group (ScriptManager)
 #. i18n: ectx: whatsthis, entry, group (ScriptManager)
@@ -1495,7 +1495,7 @@ msgstr ""
 #: amarokconfig.kcfg:619
 #, kde-format
 msgid "Enable/Disable showing moodbar, if available, in the progress slider."
-msgstr "Slå av/på visning av stemningslinje, om den finnes, i framdriftslinja."
+msgstr "Slå på/av visning av stemningslinje, om den finnes, i framdriftslinja."
 
 #. i18n: ectx: label, entry, group (Moodbar)
 #: amarokconfig.kcfg:623
@@ -2155,28 +2155,28 @@ msgstr ""
 msgid "&Move to Trash"
 msgstr "Flytt til &papirkurven"
 
-#: browsers/filebrowser/FileView.cpp:571
+#: browsers/filebrowser/FileView.cpp:567
 #: core-impl/collections/support/CollectionLocationDelegateImpl.cpp:40
 #, kde-format
 msgctxt "@title:window"
 msgid "Confirm Delete"
 msgstr "Bekreft sletting"
 
-#: browsers/filebrowser/FileView.cpp:572
+#: browsers/filebrowser/FileView.cpp:568
 #, kde-format
 msgid "Are you sure you want to delete this item?"
 msgid_plural "Are you sure you want to delete these %1 items?"
 msgstr[0] "Er du sikker på at du vil slette dette elementet?"
 msgstr[1] "Er du sikker på at du vil slette disse %1 elementene?"
 
-#: browsers/filebrowser/FileView.cpp:578
+#: browsers/filebrowser/FileView.cpp:574
 #: core-impl/collections/support/CollectionLocationDelegateImpl.cpp:53
 #, kde-format
 msgctxt "@title:window"
 msgid "Confirm Move to Trash"
 msgstr "Bekreft flytt til papirkurven"
 
-#: browsers/filebrowser/FileView.cpp:579
+#: browsers/filebrowser/FileView.cpp:575
 #, kde-format
 msgid "Are you sure you want to move this item to trash?"
 msgid_plural "Are you sure you want to move these %1 items to trash?"
@@ -10738,7 +10738,7 @@ msgstr "Slå på/av hovedvindu"
 #: MainWindow.cpp:930
 #, kde-format
 msgid "Toggle Full Screen"
-msgstr "Vend fullskjerm av/på"
+msgstr "Vend fullskjerm på/av"
 
 #: MainWindow.cpp:935 playlist/ProgressiveSearchWidget.cpp:47
 #, kde-format
