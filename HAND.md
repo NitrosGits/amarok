@@ -8,8 +8,8 @@ Status snapshot is at the bottom ("Where things stand"). Update it when you cont
 
 | Path | Purpose |
 |---|---|
-| `scripts/macos/setup-and-build.sh` | Deploy script: `deps` -> `kf6` -> `mariadb` -> `patch` -> `amarok` (or `all`). Idempotent; KF6 frameworks are tracked by `~/kde-prefix/.built-<name>` markers. **Not yet run end-to-end from a clean machine.** |
-| `scripts/macos/patches/0001-macos-qt6-port.patch` | Qt6 fixes for Amarok's macOS-only sources (`App.cpp`, `app_mac.cpp`, `src/mac/*`). `setup-and-build.sh amarok` (or `patch`) applies it automatically and idempotently. If you fix more source files, regenerate it with `git diff -- src > scripts/macos/patches/0001-macos-qt6-port.patch` (or add a 0002). |
+| `scripts/macos/setup-and-build.sh` | Deploy script: `deps` -> `kf6` -> `mariadb` -> `patch` -> `amarok` (or `all`). Idempotent; KF6 frameworks are tracked by `~/kde-prefix/.built-<name>` markers. Run end to end on a clean macOS VM (see STATUS UPDATE 5). |
+| `scripts/macos/patches/mariadb/0001-client-argv-terminator.patch` | Patch for the MariaDB 10.11 source (see problem 19). Applied automatically by the `mariadb` stage. The old Amarok source patch `0001-macos-qt6-port.patch` was dropped (commit `850f4847c4`): the Qt6 fixes are now committed directly on `macos-qt6-port`, so the `patch` stage has nothing to do for Amarok itself. |
 | `scripts/macos/progress.sh` | Progress/error summary for the Amarok and MariaDB builds (`-w` to watch). |
 | `scripts/macos/qt-private.cmake` | Passed as `CMAKE_PROJECT_INCLUDE` to every KF6 build. |
 | `~/kde-prefix` | Install prefix for KF6 (and, in progress, MariaDB). |
@@ -21,8 +21,10 @@ Amarok configure command (works):
 ```bash
 PATH="/opt/homebrew/opt/bison/bin:$PATH" cmake -S . -B build-macos -G Ninja -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_PREFIX_PATH="$HOME/kde-prefix;$(brew --prefix qt);$(brew --prefix)" \
-  -DWITH_IPOD=OFF -DWITH_LASTFM=OFF -DWITH_EMBEDDED_DB=OFF -DKF_IGNORE_PLATFORM_CHECK=ON
+  -DWITH_IPOD=OFF -DWITH_LASTFM=OFF -DWITH_EMBEDDED_DB=ON -DMYSQLCONFIG_EXECUTABLE=$HOME/kde-prefix/bin/mysql_config \
+  -DKF_IGNORE_PLATFORM_CHECK=ON
 ```
+(Simplified: the script `scripts/macos/setup-and-build.sh amarok` is the source of truth, it also sets rpaths, linker `-L` flags and `CMAKE_INSTALL_PREFIX`.)
 
 (`-DWITH_EMBEDDED_DB=OFF` was used to get a first compile. MariaDB with `libmariadbd` is now installed in `~/kde-prefix`, so switch to `ON` plus `-DMYSQLCONFIG_EXECUTABLE=$HOME/kde-prefix/bin/mysql_config`.)
 
@@ -56,6 +58,8 @@ PATH="/opt/homebrew/opt/bison/bin:$PATH" cmake -S . -B build-macos -G Ninja -DCM
 17. **24px Breeze icons**: `breeze-icons` was built with `WITH_ICON_GENERATION=OFF`. Now ON, with a venv (`$PREFIX/.icon-venv`, has `lxml`) passed via `-DPython_EXECUTABLE`. The variable name is `Python_EXECUTABLE`, not `Python3_EXECUTABLE`.
 18. **No D-Bus session bus on macOS**: Homebrew's `dbus` wants launchd. The script's `run` starts `dbus-daemon` with a copy of `session.conf` listening on a unix socket in `$TMPDIR/amarok-dbus/`.
 
+19. **Crash in `mysql_real_connect` at startup** (`strcmp` <- `get_defaults_options` <- `my_load_defaults` <- `mysql_read_default_options`, segfault on the main thread, Dock icon keeps bouncing, no window). Two causes. (a) A real bug in MariaDB 10.11 `sql-common/client.c`: `char *argv_buff[1]` is read one element past its end by `get_defaults_options()` (it skips `argv[0]` then scans for a NULL). Works on Linux by stack luck. Fix: `argv_buff[2]` plus `argv_buff[1]= 0`, in `scripts/macos/patches/mariadb/0001-client-argv-terminator.patch`, applied by the `mariadb` stage (the Windows build reuses the same patch). (b) Amarok's `MySqlEmbeddedStorage::init` built its server argv from a temporary (`databaseName().toUtf8().constData()` dangles) and never NULL-terminated it; the library keeps those pointers. Fix: static storage plus a terminator in `src/core-impl/storage/sql/mysqlestorage/MySqlEmbeddedStorage.cpp`. Fixing only (b) did NOT stop the crash; (a) was the root cause. Diagnose such crashes with `~/Library/Logs/DiagnosticReports/amarok-*.ips` (parse the JSON; the first frames name the library).
+
 The patch `scripts/macos/patches/0001-macos-qt6-port.patch` now covers 8 source files (adds `App.cpp` icon setup and `TrayIcon.cpp`). Regenerate with `git diff -- src > scripts/macos/patches/0001-macos-qt6-port.patch`.
 
 ## Where things stand
@@ -65,8 +69,8 @@ The patch `scripts/macos/patches/0001-macos-qt6-port.patch` now covers 8 source 
 - Not done:
   1. Test actual playback (GStreamer) and collection scanning with the embedded DB.
   2. Bundle properly for distribution (`macdeployqt`, rpaths, load data from the bundle instead of `~/Library` symlinks, `.dmg`).
-  3. Run the full script from a clean machine. The new `link`/`run`/icon-venv parts were only tested incrementally.
-  4. Commit (nothing is committed yet).
+  3. (Done, see STATUS UPDATE 5: clean-machine run passed.)
+  4. (Done: everything is committed and on the fork, see STATUS UPDATE 6.)
 
 ## Gotchas
 
@@ -145,3 +149,10 @@ A brand-new Parallels macOS VM ("macOS Fresh", macOS 27.0.1 build 26A434 from Ap
 - How the VM was driven from the Mac (Parallels macOS guests): shared folders do NOT mount; instead the repo was served over HTTP on the Parallels private network (`python3 -m http.server --bind 10.211.55.2`, a `git clone --depth 1` tarball) and fetched with `curl` inside the guest. `prlctl exec` runs as root and mangles nested quoting: pass simple direct arguments (`prlctl exec VM /usr/bin/sudo -u amarok /bin/bash /tmp/script.sh`) instead of `bash -c '...'`; paths with spaces must be avoided. Run stages through a tiny `stage.sh` that logs to `~/stage-<name>.log` in the guest. Never wrap a long stage in `timeout` (a 60 s timeout killed `brew install` once). Launch the GUI into the user's desktop session with `launchctl asuser 501 sudo -u amarok ...`. `prlctl capture` works on the macOS VM (it returns black on Windows).
 - Not verified on macOS: audio playback, scanning a music folder into the embedded DB, tray/dock menu, notifications (the Mac port has the Qt6 fixes for these but no runtime test yet).
 - Open: push `macos-qt6-port` (FFTW fix, prereqs stage, notes) and add the FFTW fix to `windows-port`.
+
+## STATUS UPDATE 6: UPSTREAM MERGED, CI WORKFLOWS DISPATCHED (2026-11-15)
+- **Upstream** (`origin` = `https://github.com/kde/amarok`, remote `fork` = `NitrosGits/amarok`): fetched 5 new commits (4 translation syncs plus `e48e89acda`, a file browser duplicate-entries fix in `src/browsers/filebrowser/FileView.cpp`). Merged `origin/master` into BOTH `macos-qt6-port` (`0df9c890f7`) and `windows-port` (`92edca84f6`) with no conflicts, no Claude trailer. Local `master` is still 5 commits behind upstream (not fast-forwarded). Not rebuilt locally against the merge; CI below is the test.
+- **Pushed** both branches to the fork (plain fast-forward, no force).
+- **Workflows** (`.github/workflows/macos.yml` on `macos-qt6-port`, `windows.yml` on `windows-port`) trigger only on `workflow_dispatch` or `v*` tags, so a push alone runs nothing. The fork is public (free Actions minutes) and its default branch `master` already contains both files, which is what lets `gh` dispatch them. Run: `gh workflow run macos.yml -R NitrosGits/amarok --ref macos-qt6-port` and `gh workflow run windows.yml -R NitrosGits/amarok --ref windows-port`; watch with `gh run list -R NitrosGits/amarok` / `gh run view <id> --log-failed`.
+- **First macOS dispatch was cancelled in 3 s** with the annotation `The configuration 'macos-14-arm64-us-default' is not supported`: the `macos-14` runner image was retired after the last successful run (2 Nov). Fix committed on `macos-qt6-port` (`7713dcc10b`, pushed): `runs-on: macos-15`. The workflow already selects the newest installed Xcode. Re-dispatched; result not yet known when this was written. The cached KF6/MariaDB prefix was built on `macos-14`, so a cache miss or a rebuild of the prefix is possible on `macos-15`.
+- Open: check both dispatched runs and fix whatever the merged code or the new runner breaks; add the FFTW include fix to `windows-port` (see Update 5); fast-forward local `master`; note `HAND.md` itself is only tracked on `macos-qt6-port` (the Windows worktree does not have it).
