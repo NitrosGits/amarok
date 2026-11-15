@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: macos-14          # Apple Silicon
+    runs-on: macos-15          # Apple Silicon (macos-14 images were retired)
     timeout-minutes: 360
     env:
       KF_PREFIX: /Users/runner/kde-prefix     # the cache action rejects paths containing '..'
